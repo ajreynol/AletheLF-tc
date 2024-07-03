@@ -87,4 +87,15 @@ std::ostream& operator<<(std::ostream& o, Token t)
   return o;
 }
 
+std::ostream& operator<<(std::ostream& o, Format rf)
+{
+  switch (rf)
+  {
+    case Format::ALF:o << "ALF";break;
+    case Format::RARE:o << "RARE";break;
+    default: o << "Unknown Format (" << unsigned(rf) << ")"; break;
+  }
+  return o;
+}
+
 }  // namespace alfc

@@ -99,6 +99,9 @@ ExprParser::ExprParser(Lexer& lex, State& state, bool isReference)
   d_strToLiteralKind["<hexadecimal>"] = Kind::HEXADECIMAL;
   d_strToLiteralKind["<binary>"] = Kind::BINARY;
   d_strToLiteralKind["<string>"] = Kind::STRING;
+  
+  d_strToFormat["alf"] = Format::ALF;
+  d_strToFormat["rare"] = Format::RARE;
 }
 
 class StackFrame
@@ -1126,6 +1129,25 @@ void ExprParser::parseAttributeList(Expr& e, AttrMap& attrs)
   {
     d_state.popScope();
   }
+}
+
+Format ExprParser::parseFormat()
+{
+  if (d_lex.peekToken()!=Token::KEYWORD)
+  {
+    // defaults to ALF if not provided
+    return Format::ALF;
+  }
+  std::string keyword = parseKeyword();
+  std::map<std::string, Format>::iterator it = d_strToFormat.find(keyword);
+  if (it != d_strToFormat.end())
+  {
+    return it->second;
+  }
+  std::stringstream ss;
+  ss << "Unsupported format " << keyword;
+  d_lex.parseError(ss.str());
+  return Format::NONE;
 }
 
 Kind ExprParser::parseLiteralKind()

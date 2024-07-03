@@ -110,11 +110,15 @@ class ExprParser
   void parseAttributeList(Expr& e, AttrMap& attrs, bool& pushedScope);
   /** Same as above, but ensures we pop the scope */
   void parseAttributeList(Expr& e, AttrMap& attrs);
-  
+  /**
+   * Parse a format, which is a keyword. If none is provided, ALF is returned.
+   */
+  Format parseFormat();
   /**
    * Parse literal kind.
    */
   Kind parseLiteralKind();
+  
   //-------------------------- checking
   /** type check the expression */
   Expr typeCheck(Expr& e);
@@ -166,8 +170,10 @@ class ExprParser
   bool d_isReference;
   /** Strings to attributes */
   std::map<std::string, Attr> d_strToAttr;
-  /** Mapping symbols to literal kinds */
+  /** Mapping strings to literal kinds */
   std::map<std::string, Kind> d_strToLiteralKind;
+  /** Mapping strings to formats */
+  std::map<std::string, Format> d_strToFormat;
 };
 
 }  // namespace cvc5

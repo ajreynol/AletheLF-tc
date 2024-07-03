@@ -15,6 +15,7 @@
 namespace alfc {
 
 /**
+ * Tokens for parsing.
  */
 enum class Token
 {
@@ -84,6 +85,19 @@ enum class Token
 
 /** Print a token to the stream, for debugging */
 std::ostream& operator<<(std::ostream& o, Token t);
+
+/**
+ * Rule format.
+ */
+enum class Format
+{
+  ALF,
+  RARE,
+  NONE
+};
+
+/** Print a format to the stream, for debugging */
+std::ostream& operator<<(std::ostream& o, Format f);
 
 }  // namespace alfc
 

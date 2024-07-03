@@ -309,73 +309,92 @@ bool CmdParser::parseNextCommand()
       }
       d_state.pushScope();
       std::string name = d_eparser.parseSymbol();
-      if (d_lex.peekToken()==Token::KEYWORD)
-      {
-        std::string keyword = d_eparser.parseKeyword();
-        if (keyword!="alfc")
-        {
-          d_lex.parseError("Unsupported rule format");
-        }
-      }
-      std::vector<Expr> vs =
-          d_eparser.parseAndBindSortedVarList();
-      Expr assume;
+      Format fm = d_eparser.parseFormat();
+      Expr conc;
       Expr plCons;
-      std::vector<Expr> premises;
       std::vector<Expr> args;
       std::vector<Expr> reqs;
-      Expr conc;
-      // parse premises, optionally
-      std::string keyword = d_eparser.parseKeyword();
-      if (keyword=="assumption")
+      std::vector<Expr> premises;
+      Expr assume;
+      if (fm==Format::ALF)
       {
-        assume = d_eparser.parseExpr();
-        keyword = d_eparser.parseKeyword();
+        std::vector<Expr> vs =
+            d_eparser.parseAndBindSortedVarList();
+        // parse premises, optionally
+        std::string keyword = d_eparser.parseKeyword();
+        if (keyword=="assumption")
+        {
+          assume = d_eparser.parseExpr();
+          keyword = d_eparser.parseKeyword();
+        }
+        if (keyword=="premises")
+        {
+          premises = d_eparser.parseExprList();
+          keyword = d_eparser.parseKeyword();
+        }
+        else if (keyword=="premise-list")
+        {
+          // :premise-list <pattern> <cons>
+          Expr pat = d_eparser.parseExpr();
+          plCons = d_eparser.parseExpr();
+          // pattern is the single premise
+          premises.push_back(pat);
+          keyword = d_eparser.parseKeyword();
+        }
+        // parse args, optionally
+        if (keyword=="args")
+        {
+          args = d_eparser.parseExprList();
+          keyword = d_eparser.parseKeyword();
+        }
+        // parse requirements, optionally
+        if (keyword=="requires")
+        {
+          // we support alf.conclusion in requirements
+          d_state.pushScope();
+          d_state.bind("alf.conclusion", d_state.mkConclusion());
+          // parse the expression pair list
+          reqs = d_eparser.parseExprPairList();
+          keyword = d_eparser.parseKeyword();
+          d_state.popScope();
+        }
+        // parse conclusion
+        if (keyword=="conclusion")
+        {
+          conc = d_eparser.parseExpr();
+        }
+        else if (keyword=="conclusion-given")
+        {
+          // :conclusion-given is equivalent to :conclusion alf.conclusion
+          conc = d_state.mkConclusion();
+        }
+        else
+        {
+          d_lex.parseError("Expected conclusion in declare-rule");
+        }
       }
-      if (keyword=="premises")
+      else if (fm==Format::RARE)
       {
-        premises = d_eparser.parseExprList();
-        keyword = d_eparser.parseKeyword();
-      }
-      else if (keyword=="premise-list")
-      {
-        // :premise-list <pattern> <cons>
-        Expr pat = d_eparser.parseExpr();
-        plCons = d_eparser.parseExpr();
-        // pattern is the single premise
-        premises.push_back(pat);
-        keyword = d_eparser.parseKeyword();
-      }
-      // parse args, optionally
-      if (keyword=="args")
-      {
-        args = d_eparser.parseExprList();
-        keyword = d_eparser.parseKeyword();
-      }
-      // parse requirements, optionally
-      if (keyword=="requires")
-      {
-        // we support alf.conclusion in requirements
-        d_state.pushScope();
-        d_state.bind("alf.conclusion", d_state.mkConclusion());
-        // parse the expression pair list
-        reqs = d_eparser.parseExprPairList();
-        keyword = d_eparser.parseKeyword();
-        d_state.popScope();
-      }
-      // parse conclusion
-      if (keyword=="conclusion")
-      {
-        conc = d_eparser.parseExpr();
-      }
-      else if (keyword=="conclusion-given")
-      {
-        // :conclusion-given is equivalent to :conclusion alf.conclusion
-        conc = d_state.mkConclusion();
+        args = d_eparser.parseAndBindSortedVarList();
+        // parse premsises, optionally
+        if (d_lex.peekToken()==Token::KEYWORD)
+        {
+          std::string keyword = d_eparser.parseKeyword();
+          if (keyword=="premises")
+          {
+            premises = d_eparser.parseExprList();
+          }
+        }
+        // parse two terms, the left and right hand side
+        Expr lhs = d_eparser.parseExpr();
+        Expr rhs = d_eparser.parseExpr();
+        // we require that eq is defined
+        Expr eq = d_state.getVar("=");
+        conc = d_state.mkExpr(Kind::APPLY, {eq, lhs, rhs});
       }
       else
       {
-        d_lex.parseError("Expected conclusion in declare-rule");
+        d_lex.parseError("Unknown format for declare-rule");
       }
       std::vector<Expr> argTypes;
       for (Expr& e : args)
@@ -409,8 +428,8 @@ bool CmdParser::parseNextCommand()
       {
         ret = d_state.mkFunctionType(argTypes, ret, false);
       }
-      d_state.popScope();
       Expr rule = d_state.mkSymbol(Kind::PROOF_RULE, name, ret);
+      d_state.popScope();
       d_eparser.typeCheck(rule);
       d_eparser.bind(name, rule);
       if (!plCons.isNull())
@@ -516,20 +535,13 @@ bool CmdParser::parseNextCommand()
         // not builtin symbols, thus we must assume they are defined by the user.
         // We assume that a symbol named "=" has been defined.
         Expr eq = d_state.getVar("=");
-        if (eq.isNull())
-        {
-          d_lex.parseError("Expected symbol '=' to be defined when parsing define-fun.");
-        }
+        Assert (!eq.isNull());
         Expr rhs = expr;
         Expr t = ret;
         if (!vars.empty())
         {
           // We assume that a symbol named "lambda" has been defined as a binder.
           Expr lambda = d_state.getVar("lambda");
-          if (lambda.isNull())
-          {
-            d_lex.parseError("Expected symbol 'lambda' to be defined when parsing define-fun.");
-          }
           Expr bvl = d_state.mkBinderList(lambda.getValue(), vars);
           rhs = d_state.mkExpr(Kind::APPLY, {lambda, bvl, rhs});
           std::vector<Expr> types;

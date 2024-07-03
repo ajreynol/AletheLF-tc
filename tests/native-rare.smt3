@@ -1,0 +1,16 @@
+(declare-const and (-> Bool Bool Bool)
+   :right-assoc-nil true
+)
+
+(declare-const = (-> (! Type :var A :implicit) A A Bool) :chainable and)
+
+(declare-rule bool-and-true :rare ((xs Bool :list) (ys Bool :list)) (and xs true ys) (and xs ys))
+(declare-rule bool-and-false :rare ((xs Bool :list) (ys Bool :list)) (and xs false ys) false)
+(declare-rule bool-and-flatten :rare ((xs Bool :list) (b Bool) (ys Bool :list) (zs Bool :list)) (and xs (and b ys) zs) (and xs b ys zs))
+(declare-rule bool-and-dup :rare ((xs Bool :list) (b Bool) (ys Bool :list) (zs Bool :list)) (and xs b ys b zs) (and xs b ys zs))
+
+(declare-const a Bool)
+(declare-const b Bool)
+(declare-const c Bool)
+(declare-const d Bool)
+(step @p0 (= (and a b true) (and a b)) :rule bool-and-true :args ((and a b) true))
