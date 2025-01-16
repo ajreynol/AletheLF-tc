@@ -1494,18 +1494,37 @@ Expr State::getOverloadInternal(const std::vector<Expr>& overloads,
     vchildren.push_back(c.getValue());
   }
   // try overloads in order until one is found
+  Expr tmp;
   for (size_t i=0, noverloads = overloads.size(); i<noverloads; i++)
   {
     // search in reverse order, i.e. the last bound symbol takes precendence
     size_t ii = (noverloads-1)-i;
     vchildren[0] = overloads[ii].getValue();
-    Expr x = Expr(vchildren.size()>2 ? mkApplyInternal(vchildren) : mkExprInternal(Kind::APPLY, vchildren));
+    // The syntax e.g. (eo::as nil (List Int)) has a different behavior.
+    // it does not distinguish a symbol but instead annotates the constructor
+    // symbol. This is done as an *opaque* argument to ensure type annotations
+    // are not in ordinary positions.
+    if (getConstructorKind(vchildren[0]) == Attr::AMB_DATAYPE_CONSTRUCTOR)
+    {
+      Trace("overload") << "...type arg for ambiguous constructor" << std::endl;
+      Expr cons(vchildren[0]);
+      Expr rt(retType);
+      tmp = mkExpr(Kind::APPLY_OPAQUE, {cons, rt});
+      vchildren[0] = tmp.getValue();
+    }
+    Expr x = vchildren.size() == 1
+                 ? Expr(vchildren[0])
+                 : (Expr(vchildren.size() > 2
+                             ? mkApplyInternal(vchildren)
+                             : mkExprInternal(Kind::APPLY, vchildren)));
+    Trace("overload") << "...check type of " << x << std::endl;
     Expr t = d_tc.getType(x);
+    Trace("overload") << "...has type " << t << std::endl;
     // if term is well-formed, and matches the return type if it exists
     if (!t.isNull() && (retType==nullptr || retType==t.getValue()))
     {
       // return the operator, do not check the remainder
-      return overloads[ii];
+      return Expr(vchildren[0]);
     }
   }
   // otherwise, none found, return null

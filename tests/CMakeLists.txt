@@ -133,6 +133,7 @@ set(ethos_test_file_list
     simul-overload.eo
     bang-lex.eo
     segfault-98.eo
+    param-dt-parse.eo
 )
 
 if(ENABLE_ORACLES)

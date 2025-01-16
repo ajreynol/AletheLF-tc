@@ -19,7 +19,7 @@ namespace ethos {
 enum class Attr
 {
   NONE = 0,
-  
+
   VAR,
   IMPLICIT,
   REQUIRES,
@@ -34,11 +34,11 @@ enum class Attr
   BINDER,
   LET_BINDER,
   OPAQUE,
-  
+
   // smt3 things that are not strictly supported
   SYNTAX,
   RESTRICT,
-  
+
   // indicate how to construct proof rule steps
   PREMISE_LIST,
 
@@ -53,6 +53,7 @@ enum class Attr
   // datatypes
   DATATYPE,
   DATATYPE_CONSTRUCTOR,
+  AMB_DATAYPE_CONSTRUCTOR,  // constructors requiring an opaque type argument
   CODATATYPE
 };
 

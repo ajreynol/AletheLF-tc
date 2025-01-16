@@ -867,7 +867,8 @@ bool ExprParser::parseDatatypesDef(
     const std::vector<std::string>& dnames,
     const std::vector<size_t>& arities,
     std::map<const ExprValue*, std::vector<Expr>>& dts,
-    std::map<const ExprValue*, std::vector<Expr>>& dtcons)
+    std::map<const ExprValue*, std::vector<Expr>>& dtcons,
+    std::unordered_set<const ExprValue*>& ambCons)
 {
   Assert(dnames.size() == arities.size()
          || (dnames.size() == 1 && arities.empty()));
@@ -962,7 +963,8 @@ bool ExprParser::parseDatatypesDef(
       dti = d_state.mkExpr(Kind::APPLY, dapp);
     }
     std::vector<std::pair<std::string, Expr>> toBind;
-    parseConstructorDefinitionList(dti, dts[dt.getValue()], dtcons, toBind);
+    std::vector<Expr>& clist = dts[dt.getValue()];
+    parseConstructorDefinitionList(dti, clist, dtcons, toBind, ambCons, params);
     if (pushedScope)
     {
       d_lex.eatToken(Token::RPAREN);
@@ -990,7 +992,9 @@ void ExprParser::parseConstructorDefinitionList(
     Expr& dt,
     std::vector<Expr>& conslist,
     std::map<const ExprValue*, std::vector<Expr>>& dtcons,
-    std::vector<std::pair<std::string, Expr>>& toBind)
+    std::vector<std::pair<std::string, Expr>>& toBind,
+    std::unordered_set<const ExprValue*>& ambCons,
+    const std::vector<Expr>& params)
 {
   d_lex.eatToken(Token::LPAREN);
   Expr boolType = d_state.mkBoolType();
@@ -1017,6 +1021,24 @@ void ExprParser::parseConstructorDefinitionList(
       toBind.emplace_back(ss.str(), updater);
       d_lex.eatToken(Token::RPAREN);
     }
+    bool isAmb = false;
+    if (!params.empty())
+    {
+      // if this is an ambiguous datatype constructor, we add (Quote T)
+      // as the first argument type.
+      Expr tup = d_state.mkExpr(Kind::TUPLE, typelist);
+      std::vector<Expr> pargs = Expr::getVariables(tup);
+      Expr fv = findFreeVar(dt, pargs);
+      Trace("param-dt") << "Parameteric datatype constructor: " << name;
+      Trace("param-dt") << (fv.isNull() ? " un" : " ") << "ambiguous"
+                        << std::endl;
+      if (!fv.isNull())
+      {
+        Expr odt = d_state.mkQuoteType(dt);
+        typelist.insert(typelist.begin(), odt);
+        isAmb = true;
+      }
+    }
     Expr ctype = d_state.mkFunctionType(typelist, dt);
     Expr cons = d_state.mkSymbol(Kind::CONST, name, ctype);
     toBind.emplace_back(name, cons);
@@ -1028,6 +1050,10 @@ void ExprParser::parseConstructorDefinitionList(
     Expr tester = d_state.mkSymbol(Kind::CONST, ss.str(), dtype);
     toBind.emplace_back(ss.str(), tester);
     dtcons[cons.getValue()] = sels;
+    if (isAmb)
+    {
+      ambCons.insert(cons.getValue());
+    }
   }
 }
 
@@ -1402,7 +1428,7 @@ Expr ExprParser::typeCheck(Expr& e, const Expr& expected)
   return et;
 }
 
-void ExprParser::ensureBound(const Expr& e, const std::vector<Expr>& bvs)
+Expr ExprParser::findFreeVar(const Expr& e, const std::vector<Expr>& bvs)
 {
   std::vector<Expr> efv = Expr::getVariables(e);
   for (const Expr& v : efv)
@@ -1414,13 +1440,23 @@ void ExprParser::ensureBound(const Expr& e, const std::vector<Expr>& bvs)
       {
         continue;
       }
-      std::stringstream msg;
-      msg << "Unexpected free parameter in expression:" << std::endl;
-      msg << "      Expression: " << e << std::endl;
-      msg << "  Free parameter: " << v << std::endl;
-      msg << "Bound parameters: " << bvs << std::endl;
-      d_lex.parseError(msg.str());
+      return v;
     }
+  }
+  return d_null;
+}
+
+void ExprParser::ensureBound(const Expr& e, const std::vector<Expr>& bvs)
+{
+  Expr v = findFreeVar(e, bvs);
+  if (!v.isNull())
+  {
+    std::stringstream msg;
+    msg << "Unexpected free parameter in expression:" << std::endl;
+    msg << "      Expression: " << e << std::endl;
+    msg << "  Free parameter: " << v << std::endl;
+    msg << "Bound parameters: " << bvs << std::endl;
+    d_lex.parseError(msg.str());
   }
 }
 

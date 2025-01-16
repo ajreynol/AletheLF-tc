@@ -1,0 +1,14 @@
+
+(declare-type Int ())
+(declare-consts <numeral> Int)
+
+(declare-const @test (-> (! Type :opaque :var T) Int T))
+
+(define t () (@test Bool 0) :type Bool)
+
+(declare-datatypes ( (List 1) ) (
+(par ( X ) ( (nil) (cons (head X) (tail (List X)))))
+))
+
+(define d1 () (eo::as nil (List Int)) :type (List Int))
+(define d2 () (cons 0 d1) :type (List Int))

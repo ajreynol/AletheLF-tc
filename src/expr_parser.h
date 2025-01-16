@@ -85,11 +85,20 @@ class ExprParser
    * datatype_dec :=
    *   (<constructor_dec>+) | (par (<symbol>+) (<constructor_dec>+))
    * constructor_dec := (<symbol> (<symbol> <sort>)∗)
+   *
+   * @param dnames The names of the datatypes.
+   * @param arities The arities of the datatypes given by the names dnames.
+   * @param dts Mapping from datatypes to their constructor symbols.
+   * @param dtcons Mapping from constructors to their selector symbols.
+   * @param ambCons The subset of constructors in the domain of dtcons that are
+   * ambiguous constructors, i.e. require their return type as the first
+   * argument.
    */
   bool parseDatatypesDef(const std::vector<std::string>& dnames,
                          const std::vector<size_t>& arities,
                          std::map<const ExprValue*, std::vector<Expr>>& dts,
-                         std::map<const ExprValue*, std::vector<Expr>>& dtcons);
+                         std::map<const ExprValue*, std::vector<Expr>>& dtcons,
+                         std::unordered_set<const ExprValue*>& ambCons);
   /**
    * Parses ':X', returns 'X'
    */
@@ -139,7 +148,14 @@ class ExprParser
   Expr getProofRule(const std::string& name);
   /** Bind, or throw error otherwise */
   void bind(const std::string& name, Expr& e);
-  /** Ensure bound */
+  /**
+   * @return a variable from the free variables of e that is not in bvs
+   * one exists, or the null expression otherwise.
+   */
+  Expr findFreeVar(const Expr& e, const std::vector<Expr>& bvs);
+  /**
+   * Throw an exception if the free variables of e are not in bvs.
+   */
   void ensureBound(const Expr& e, const std::vector<Expr>& bvs);
   //-------------------------- end checking
   /**
@@ -159,12 +175,20 @@ class ExprParser
   /**
    * Parse constructor definition list, add to declaration type. The expected
    * syntax is '(<constructor_dec>+)'.
+   * @param dt The datatype this constructor list is for.
+   * @param conslist Populated with the constructors of dt.
+   * @param dtcons Mapping from constructors to their selector symbols.
+   * @param toBind The symbols to bind.
+   * @param ambCons The subset of conslist that are ambiguous constructors.
+   * @param param The parameters of dt.
    */
   void parseConstructorDefinitionList(
       Expr& dt,
       std::vector<Expr>& conslist,
       std::map<const ExprValue*, std::vector<Expr>>& dtcons,
-      std::vector<std::pair<std::string, Expr>>& toBind);
+      std::vector<std::pair<std::string, Expr>>& toBind,
+      std::unordered_set<const ExprValue*>& ambCons,
+      const std::vector<Expr>& params);
   /** Return the unsigned for the current token string. */
   uint32_t tokenStrToUnsigned();
   /**

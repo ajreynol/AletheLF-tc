@@ -38,6 +38,7 @@ std::ostream& operator<<(std::ostream& o, Attr a)
     case Attr::DATATYPE: o << "DATATYPE"; break;
     case Attr::CODATATYPE: o << "CODATATYPE"; break;
     case Attr::DATATYPE_CONSTRUCTOR: o << "DATATYPE_CONSTRUCTOR"; break;
+    case Attr::AMB_DATAYPE_CONSTRUCTOR: o << "AMB_DATAYPE_CONSTRUCTOR"; break;
     default: o << "UnknownAttr(" << unsigned(a) << ")"; break;
   }
   return o;
